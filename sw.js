@@ -1,10 +1,8 @@
-// ── VERSION ──────────────────────────────────────────────
-// This timestamp changes on every deploy → forces cache refresh.
-const VERSION = 'quoterly-v20260301181819';
+const VERSION = 'quoterly-v20260303191634';
 const CACHE   = VERSION;
 const ASSETS  = ['/Quoterly/', '/Quoterly/index.html', '/Quoterly/manifest.json', '/Quoterly/icon-192.png', '/Quoterly/icon-512.png'];
 
-// ── INSTALL ──────────────────────────────────────────────
+// ── INSTALL ──
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE)
@@ -13,20 +11,19 @@ self.addEventListener('install', e => {
   );
 });
 
-// ── ACTIVATE — delete old caches ─────────────────────────
+// ── ACTIVATE — delete old caches ──
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys()
       .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
-  // Notify all open tabs that a new version is ready
   self.clients.matchAll({ type: 'window' }).then(clients =>
     clients.forEach(c => c.postMessage({ type: 'SW_UPDATED' }))
   );
 });
 
-// ── FETCH — network-first for HTML, cache-first for rest ──
+// ── FETCH ──
 self.addEventListener('fetch', e => {
   if (e.request.mode === 'navigate') {
     e.respondWith(
@@ -52,45 +49,52 @@ self.addEventListener('fetch', e => {
   );
 });
 
-// ── NOTIFICATIONS ─────────────────────────────────────────
-let notifTimer = null, recurInterval = null;
+// ── NOTIFICATIONS ──
+// We use a persistent alarm via setTimeout chains.
+// On SW restart, the page will re-send SCHEDULE message.
+let notifTimer = null;
 
 self.addEventListener('message', e => {
-  if (e.data && e.data.type === 'SCHEDULE') {
-    const { delay, state } = e.data;
-    if (notifTimer)    clearTimeout(notifTimer);
-    if (recurInterval) clearInterval(recurInterval);
+  if (!e.data) return;
+
+  if (e.data.type === 'SCHEDULE') {
+    const { delay, lang } = e.data;
+    if (notifTimer) clearTimeout(notifTimer);
+
+    // Schedule first notification
     notifTimer = setTimeout(() => {
-      fireNotification(state);
-      recurInterval = setInterval(() => fireNotification(state), 24 * 60 * 60 * 1000);
+      fireNotification(lang || 'cs');
+      // Reschedule every 24h
+      notifTimer = setInterval(() => fireNotification(lang || 'cs'), 24 * 60 * 60 * 1000);
     }, delay);
   }
 });
 
-const QUOTES = [
-  { text: "The only way to do great work is to love what you do.", author: "Steve Jobs" },
-  { text: "Imagination is more important than knowledge.", author: "Albert Einstein" },
-  { text: "We are not troubled by things, but by our opinions of them.", author: "Epictetus" },
-  { text: "The obstacle in the path becomes the path.", author: "Marcus Aurelius" },
-  { text: "Be the change you wish to see in the world.", author: "Mahatma Gandhi" },
-  { text: "Creativity is intelligence having fun.", author: "Albert Einstein" },
-  { text: "Wealth consists not in having great possessions, but in having few wants.", author: "Epictetus" },
-];
+function fireNotification(lang) {
+  const isCzech = lang === 'cs';
+  const title   = 'Quoterly ✨';
+  const body    = isCzech
+    ? 'Tvůj dnešní citát je připraven.'
+    : 'Your daily quote is ready.';
 
-function fireNotification(state) {
-  const q = QUOTES[Math.floor(Math.random() * QUOTES.length)];
-  self.registration.showNotification('Quoterly ✦', {
-    body: '"' + q.text + '"\n— ' + q.author,
-    icon: '/icon-192.png', badge: '/icon-192.png',
-    tag: 'daily-quote', renotify: true, data: { url: '/' }
+  self.registration.showNotification(title, {
+    body,
+    icon:     '/Quoterly/icon-192.png',
+    badge:    '/Quoterly/icon-192.png',
+    tag:      'daily-quote',
+    renotify: true,
+    data:     { url: '/Quoterly/' }
   });
 }
 
 self.addEventListener('notificationclick', e => {
   e.notification.close();
   e.waitUntil(
-    self.clients.matchAll({ type: 'window' }).then(list => {
-      if (list.length) return list[0].focus();
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+      // Focus existing window if open
+      for (const client of list) {
+        if (client.url.includes('/Quoterly') && 'focus' in client) return client.focus();
+      }
       return self.clients.openWindow('/Quoterly/');
     })
   );

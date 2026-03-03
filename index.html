@@ -46,7 +46,8 @@
     /* screens */
     .screen {
       position: absolute; inset: 0; display: flex; flex-direction: column;
-      align-items: center; justify-content: center; padding: 32px 28px;
+      align-items: center; justify-content: center;
+      padding: calc(32px + env(safe-area-inset-top)) 28px calc(32px + env(safe-area-inset-bottom));
       opacity: 0; pointer-events: none; overflow-y: auto;
       transition: opacity 0.5s ease, transform 0.5s ease; transform: translateY(18px);
     }
@@ -95,7 +96,6 @@
       color: var(--muted); cursor: pointer; transition: all 0.25s ease; border-radius: 3px;
       display: flex; flex-direction: column; align-items: center; gap: 10px; min-width: 110px;
     }
-    .lang-pill-flag { font-size: 28px; line-height: 1; }
     .lang-pill-code { font-family: 'Josefin Sans', sans-serif; font-size: 10px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--muted); transition: color 0.25s; }
     .lang-pill-name { font-family: 'Josefin Sans', sans-serif; font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); transition: color 0.25s; }
     .lang-pill.selected { border-color: var(--gold); background: rgba(201,168,76,0.06); }
@@ -122,7 +122,7 @@
     .drum-label { font-size: 10px; letter-spacing: 0.28em; text-transform: uppercase; color: var(--muted); margin-top: 10px; text-align: center; }
 
     /* main screen */
-    #screen-main { justify-content: space-between; padding: 56px 32px 40px; }
+    #screen-main { justify-content: space-between; padding: calc(56px + env(safe-area-inset-top)) 32px calc(40px + env(safe-area-inset-bottom)); }
     .main-header { width: 100%; display: flex; justify-content: space-between; align-items: center; }
     .main-logo { font-family: 'Cormorant Garamond', serif; font-size: 16px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold); font-weight: 300; }
     .header-actions { display: flex; gap: 4px; }
@@ -145,14 +145,14 @@
     .icon-btn:hover { border-color: var(--gold); color: var(--gold); }
 
     /* settings — all centred */
-    #screen-settings { justify-content: flex-start; padding-top: 80px; align-items: center; }
+    #screen-settings { justify-content: flex-start; padding-top: calc(80px + env(safe-area-inset-top)); align-items: center; }
     .settings-section { width: 100%; max-width: 360px; margin-bottom: 32px; display: flex; flex-direction: column; align-items: center; text-align: center; }
     .settings-label { font-size: 9px; letter-spacing: 0.4em; text-transform: uppercase; color: var(--gold); margin-bottom: 18px; }
-    .back-btn { position: absolute; top: 28px; left: 28px; background: none; border: none; color: var(--muted); cursor: pointer; font-family: 'Josefin Sans', sans-serif; font-size: 10px; letter-spacing: 0.25em; text-transform: uppercase; display: flex; align-items: center; gap: 8px; transition: color 0.2s; }
+    .back-btn { position: absolute; top: calc(28px + env(safe-area-inset-top)); left: 28px; background: none; border: none; color: var(--muted); cursor: pointer; font-family: 'Josefin Sans', sans-serif; font-size: 10px; letter-spacing: 0.25em; text-transform: uppercase; display: flex; align-items: center; gap: 8px; transition: color 0.2s; }
     .back-btn:hover { color: var(--text); }
 
     /* favourites screen */
-    #screen-favourites { justify-content: flex-start; padding-top: 80px; }
+    #screen-favourites { justify-content: flex-start; padding-top: calc(80px + env(safe-area-inset-top)); }
     .fav-list { width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 16px; padding-bottom: 32px; }
     .fav-empty { font-family: 'Cormorant Garamond', serif; font-size: 20px; font-style: italic; color: var(--muted); text-align: center; margin-top: 20px; }
     .fav-item { border: 1px solid var(--border); padding: 18px 20px; position: relative; background: var(--surface); border-radius: 3px; transition: border-color 0.2s; }
@@ -165,7 +165,7 @@
     .fav-item-share:hover { color: var(--gold); }
 
     /* report screen */
-    #screen-report { justify-content: flex-start; padding-top: 80px; }
+    #screen-report { justify-content: flex-start; padding-top: calc(80px + env(safe-area-inset-top)); }
     .report-options { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 360px; margin-bottom: 32px; }
     .report-opt { padding: 16px 20px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-family: 'Josefin Sans', sans-serif; font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; cursor: pointer; transition: all 0.2s; text-align: left; display: flex; align-items: center; gap: 14px; border-radius: 2px; }
     .report-opt:hover { border-color: var(--gold); color: var(--gold); }
@@ -236,12 +236,10 @@
     <p class="screen-sub" id="lang-sub">Quotes are originally in English.<br/>We can translate them for you.</p>
     <div class="lang-options">
       <button class="lang-pill" data-lang="en" onclick="selectLang('en')">
-        <span class="lang-pill-flag">🇬🇧</span>
         <span class="lang-pill-code">EN</span>
         <span class="lang-pill-name">English</span>
       </button>
       <button class="lang-pill" data-lang="cs" onclick="selectLang('cs')">
-        <span class="lang-pill-flag">🇨🇿</span>
         <span class="lang-pill-code">CZ</span>
         <span class="lang-pill-name">Česky</span>
       </button>
@@ -481,17 +479,32 @@ async function translateQuote(text) {
   try { const c = JSON.parse(localStorage.getItem(TRANS_KEY)||'{}'); if (c[text]) return c[text]; } catch (_) {}
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 300,
-        messages: [{ role: 'user', content: `Translate to natural Czech. Return ONLY the translated text, no quotes, no explanation:\n\n${text}` }] })
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 300,
+        messages: [{ role: 'user', content: 'Translate this quote to natural Czech. Return ONLY the translated text, no quotes, no explanation: ' + text }]
+      })
     });
+    if (!res.ok) { console.warn('Translation HTTP error:', res.status); return text; }
     const data = await res.json();
-    const t = data.content?.[0]?.text?.trim();
-    if (t) {
-      try { const c = JSON.parse(localStorage.getItem(TRANS_KEY)||'{}'); const keys=Object.keys(c); if(keys.length>200)delete c[keys[0]]; c[text]=t; localStorage.setItem(TRANS_KEY,JSON.stringify(c)); } catch(_){}
-      return t;
+    const translated = data.content?.[0]?.text?.trim();
+    if (translated) {
+      try {
+        const c = JSON.parse(localStorage.getItem(TRANS_KEY)||'{}');
+        const keys = Object.keys(c);
+        if (keys.length > 200) delete c[keys[0]];
+        c[text] = translated;
+        localStorage.setItem(TRANS_KEY, JSON.stringify(c));
+      } catch(_) {}
+      return translated;
     }
-  } catch (e) { console.warn('Translation:', e.message); }
+  } catch (e) { console.warn('Translation failed:', e.message); }
   return text;
 }
 
@@ -809,17 +822,35 @@ function syncSettingsUI(){syncCatPills();setupCategoryPills('#cat-settings');upd
 // ══ QUOTES ══
 async function loadQuote(forceNew){
   const area=document.getElementById('quote-area');
+  const lang=state.language||'en';
+  const catLabel=lang==='cs'?'Denní citát':'Daily quote';
+
+  // If not forced and we already have today's quote, just show it
+  const todayKey='quoterly_quote_date';
+  const todayStr=new Date().toDateString();
+  if(!forceNew && state.currentQuote && localStorage.getItem(todayKey)===todayStr){
+    const q=state.currentQuote;
+    document.getElementById('q-text').textContent=q.text;
+    document.getElementById('q-author').textContent='— '+q.author;
+    document.getElementById('q-category').textContent=catLabel;
+    const isFav=state.favs&&state.favs.some(f=>f.text===q.text);
+    const svg=document.querySelector('#fav-btn svg');if(svg)svg.style.fill=isFav?'var(--gold)':'none';
+    area.style.opacity='1';area.style.transform='translateY(0)';
+    return;
+  }
+
   if(forceNew){area.style.transition='opacity 0.35s, transform 0.35s';area.style.opacity='0';area.style.transform='translateY(10px)';}
   const pool=await getQuotePool();
   const q=pool[Math.floor(Math.random()*pool.length)];
-  const lang=state.language||'en';
   let displayText=q.text;
   if(lang==='cs'){document.getElementById('q-text').innerHTML='<span class="spinner"></span>';document.getElementById('q-text').style.opacity='1';displayText=await translateQuote(q.text);}
   const authorRaw=q.author||'';
   const isUnknown=!authorRaw||authorRaw.toLowerCase()==='unknown'||!authorRaw.trim();
   const author=isUnknown?(lang==='cs'?'Neznámý autor':'Unknown'):authorRaw;
-  const catLabel=lang==='cs'?'Denní citát':'Daily quote';
-  state.currentQuote={text:displayText,originalText:q.text,author,cat:catLabel};saveState();
+  state.currentQuote={text:displayText,originalText:q.text,author,cat:catLabel};
+  // Save today's date so we don't regenerate until tomorrow
+  try{localStorage.setItem(todayKey,todayStr);}catch(_){}
+  saveState();
   const show=()=>{
     document.getElementById('q-text').textContent=displayText;
     document.getElementById('q-author').textContent='— '+author;
@@ -914,7 +945,9 @@ function scheduleNotification(){
     const[h,m]=state.time.split(':').map(Number),now=new Date();
     const fire=new Date(now.getFullYear(),now.getMonth(),now.getDate(),h,m,0);
     if(fire<=now)fire.setDate(fire.getDate()+1);
-    reg.active&&reg.active.postMessage({type:'SCHEDULE',delay:fire-now,state});
+    const delay=fire-now;
+    const lang=state.language||'cs';
+    if(reg.active) reg.active.postMessage({type:'SCHEDULE',delay,lang});
   });
 }
 function updateNotifStatus(){
