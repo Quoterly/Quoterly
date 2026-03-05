@@ -29,6 +29,9 @@
     }
 
     html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Josefin Sans', sans-serif; font-weight: 300; overflow: hidden; }
+    /* Extend bg color behind iOS home indicator */
+    body { background-color: var(--bg); }
+    body::after { content: ''; position: fixed; bottom: 0; left: 0; right: 0; height: env(safe-area-inset-bottom); background: var(--bg); z-index: 999; }
     #app { height: 100%; display: flex; flex-direction: column; position: relative; }
 
     /* noise */
@@ -476,25 +479,21 @@ async function getQuotePool() {
 // ══ TRANSLATION ══
 const TRANS_KEY = 'quoterly_trans_v2';
 async function translateQuote(text) {
-  try { const c = JSON.parse(localStorage.getItem(TRANS_KEY)||'{}'); if (c[text]) return c[text]; } catch (_) {}
+  // Check cache first
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 300,
-        messages: [{ role: 'user', content: 'Translate this quote to natural Czech. Return ONLY the translated text, no quotes, no explanation: ' + text }]
-      })
-    });
-    if (!res.ok) { console.warn('Translation HTTP error:', res.status); return text; }
+    const c = JSON.parse(localStorage.getItem(TRANS_KEY)||'{}');
+    if (c[text]) return c[text];
+  } catch (_) {}
+
+  try {
+    // MyMemory free translation API — no key required, works from browser
+    const url = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(text) + '&langpair=en|cs';
+    const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
-    const translated = data.content?.[0]?.text?.trim();
-    if (translated) {
+    const translated = data.responseData?.translatedText?.trim();
+    // MyMemory returns original if translation fails
+    if (translated && translated.toLowerCase() !== text.toLowerCase()) {
       try {
         const c = JSON.parse(localStorage.getItem(TRANS_KEY)||'{}');
         const keys = Object.keys(c);
@@ -505,11 +504,11 @@ async function translateQuote(text) {
       return translated;
     }
   } catch (e) { console.warn('Translation failed:', e.message); }
-  return text;
+  return text; // fallback: original English
 }
 
 // ══ DRUM ROLL ══
-const HOURS=[...Array(24).keys()], MINUTES=[...Array(60).keys()], ITEM_H=52, PAD=3;
+const HOURS=[...Array(24).keys()], MINUTES=[0,5,10,15,20,25,30,35,40,45,50,55], ITEM_H=52, PAD=3;
 function buildDrum(colEl, innerEl, items, initIndex, onChange) {
   let idx = Math.max(0, Math.min(items.length-1, initIndex));
   innerEl.innerHTML = '';
@@ -541,13 +540,18 @@ let dH,dM,dHS,dMS;
 const pad = n=>String(n).padStart(2,'0');
 function initDrums(){
   const[h,m]=state.time.split(':').map(Number);
-  dH =buildDrum(document.getElementById('drum-h'),  document.getElementById('drum-h-inner'),  HOURS,h,  v=>{state.time=pad(v)+':'+state.time.split(':')[1];});
-  dM =buildDrum(document.getElementById('drum-m'),  document.getElementById('drum-m-inner'),  MINUTES,m,v=>{state.time=state.time.split(':')[0]+':'+pad(v);});
-  dHS=buildDrum(document.getElementById('drum-h-s'),document.getElementById('drum-h-s-inner'),HOURS,h,  v=>{state.time=pad(v)+':'+state.time.split(':')[1];onTimeChange();});
-  dMS=buildDrum(document.getElementById('drum-m-s'),document.getElementById('drum-m-s-inner'),MINUTES,m,v=>{state.time=state.time.split(':')[0]+':'+pad(v);onTimeChange();});
+  const mIdx=Math.round(m/5)%12;
+  dH =buildDrum(document.getElementById('drum-h'),  document.getElementById('drum-h-inner'),  HOURS,h,     v=>{state.time=pad(v)+':'+state.time.split(':')[1];});
+  dM =buildDrum(document.getElementById('drum-m'),  document.getElementById('drum-m-inner'),  MINUTES,mIdx,v=>{state.time=state.time.split(':')[0]+':'+pad(v);});
+  dHS=buildDrum(document.getElementById('drum-h-s'),document.getElementById('drum-h-s-inner'),HOURS,h,     v=>{state.time=pad(v)+':'+state.time.split(':')[1];onTimeChange();});
+  dMS=buildDrum(document.getElementById('drum-m-s'),document.getElementById('drum-m-s-inner'),MINUTES,mIdx,v=>{state.time=state.time.split(':')[0]+':'+pad(v);onTimeChange();});
 }
 function onTimeChange(){saveState();scheduleNotification();showBanner(t('banner_time',state.time));document.getElementById('next-time').textContent=state.time;}
-function syncDrums(){const[h,m]=state.time.split(':').map(Number);dH&&dH.setIndex(h);dM&&dM.setIndex(m);dHS&&dHS.setIndex(h);dMS&&dMS.setIndex(m);}
+function syncDrums(){
+  const[h,m]=state.time.split(':').map(Number);
+  const mIdx=Math.round(m/5)%12;
+  dH&&dH.setIndex(h);dM&&dM.setIndex(mIdx);dHS&&dHS.setIndex(h);dMS&&dMS.setIndex(mIdx);
+}
 
 
 // ══ i18n — UI STRINGS ══
@@ -620,6 +624,7 @@ const T = {
     notif_denied:    'Oznámení jsou zakázána ✗',
     notif_default:   'Oznámení nebyla nastavena',
     notif_unsupported:'Prohlížeč nepodporuje oznámení',
+    ios_notif_hint: 'Na iPhone notifikace fungují spolehlivě pouze pokud appku každý den otevřeš před nastavenou hodinou. Apple bohužel neumožňuje PWA aplikacím běžet na pozadí.',
     // categories
     cat_business:    '◈ Business & Motivace',
     cat_philosophy:  '◎ Filozofie & Věda',
@@ -683,6 +688,7 @@ const T = {
     notif_denied:    'Notifications blocked ✗',
     notif_default:   'Notifications not set up',
     notif_unsupported:'Browser does not support notifications',
+    ios_notif_hint: 'On iPhone, notifications only work reliably if you open the app each day before your set time. Apple does not allow PWA apps to run in the background.',
     cat_business:    '◈ Business & Motivation',
     cat_philosophy:  '◎ Philosophy & Science',
   }
@@ -781,7 +787,7 @@ function applyTranslations() {
 function init(){
   initDrums();
   const saved=localStorage.getItem('quoterly_state');
-  if(saved){try{state={...state,...JSON.parse(saved)};}catch(_){} if(state.onboarded){syncDrums();syncSettingsUI();applyTranslations();loadQuote(false);goTo('screen-main');document.getElementById('next-time').textContent=state.time;updateNotifStatus();return;}}
+  if(saved){try{state={...state,...JSON.parse(saved)};}catch(_){} if(state.onboarded){syncDrums();syncSettingsUI();applyTranslations();loadQuote(false);goTo('screen-main');document.getElementById('next-time').textContent=state.time;updateNotifStatus();scheduleNotification();return;}}
   applyTranslations();
   if(/iphone|ipad/i.test(navigator.userAgent))document.getElementById('ios-hint').style.display='block';
   setupCategoryPills('#cat-container');updateLangPills();
@@ -942,18 +948,26 @@ function finishOnboarding(){state.onboarded=true;saveState();setupCategoryPills(
 function scheduleNotification(){
   if(!('serviceWorker'in navigator)||Notification.permission!=='granted')return;
   navigator.serviceWorker.ready.then(reg=>{
-    const[h,m]=state.time.split(':').map(Number),now=new Date();
-    const fire=new Date(now.getFullYear(),now.getMonth(),now.getDate(),h,m,0);
-    if(fire<=now)fire.setDate(fire.getDate()+1);
-    const delay=fire-now;
+    const[h,m]=state.time.split(':').map(Number);
     const lang=state.language||'cs';
-    if(reg.active) reg.active.postMessage({type:'SCHEDULE',delay,lang});
+    // Send hour+min so SW can re-arm itself after restart
+    if(reg.active) reg.active.postMessage({type:'SCHEDULE', hour:h, min:m, lang});
   });
 }
 function updateNotifStatus(){
   const perm='Notification'in window?Notification.permission:'not-supported';
   const map={granted:t('notif_granted'),denied:t('notif_denied'),default:t('notif_default'),'not-supported':t('notif_unsupported')};
   ['notif-status','notif-status-2'].forEach(id=>{const el=document.getElementById(id);if(el){el.textContent=map[perm]||'';el.className='notification-status'+(perm==='granted'?' granted':'');}});
+  // Show iOS hint on iPhone
+  const isIOS=/iphone|ipad/i.test(navigator.userAgent);
+  ['ios-notif-hint','ios-notif-hint-onboard'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){el.style.display=isIOS?'flex':'none';}
+  });
+  const hintText=t('ios_notif_hint');
+  ['ios-notif-hint-text','ios-notif-hint-onboard-text'].forEach(id=>{
+    const el=document.getElementById(id);if(el)el.textContent=hintText;
+  });
 }
 
 // ══ HAPTICS ══
