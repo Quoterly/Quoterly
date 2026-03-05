@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Quoterly</title>
+  <meta name="description" content="Your daily quote — inspiration from the world's greatest minds." />
+  <meta name="theme-color" content="#080d18" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Quoterly" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Josefin+Sans:wght@200;300;400&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #080d18;
+      --bg2:     #0d1525;
+      --surface: #111c30;
+      --border:  rgba(160,185,230,0.1);
+      --gold:    #c9a84c;
+      --text:    #c8d4e8;
+      --muted:   #6b7d99;
+      --silver:  #a0b4cc;
+    }
+
+    html { height: 100%; background: var(--bg); }
+    body { min-height: 100%; min-height: 100dvh; background: var(--bg); color: var(--text); font-family: 'Josefin Sans', sans-serif; font-weight: 300; overflow: hidden; }
+    /* Extend bg behind iOS home indicator and Dynamic Island */
+    body::before { content: ''; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--bg); z-index: -1; }
+    #app { height: 100%; min-height: 100dvh; display: flex; flex-direction: column; position: relative; background: var(--bg); }
+
+    /* noise */
+    #app::before {
+      content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 100; opacity: 0.3;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    }
+
+    /* glows — blue tinted */
+    .glow { position: fixed; border-radius: 50%; filter: blur(90px); pointer-events: none; z-index: 0; }
+    .glow-1 { width: 340px; height: 340px; background: radial-gradient(circle, rgba(50,100,200,0.12) 0%, transparent 70%); top: -100px; right: -80px; }
+    .glow-2 { width: 280px; height: 280px; background: radial-gradient(circle, rgba(201,168,76,0.07) 0%, transparent 70%); bottom: -70px; left: -60px; }
+    .glow-3 { width: 200px; height: 200px; background: radial-gradient(circle, rgba(30,80,180,0.08) 0%, transparent 70%); bottom: 30%; right: -40px; }
+
+    /* screens */
+    .screen {
+      position: fixed; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: calc(32px + env(safe-area-inset-top)) 28px calc(32px + env(safe-area-inset-bottom));
+      opacity: 0; pointer-events: none; overflow-y: auto;
+      background: var(--bg);
+      transition: opacity 0.5s ease, transform 0.5s ease; transform: translateY(18px);
+    }
+    .screen.active { opacity: 1; pointer-events: all; transform: translateY(0); }
+
+    /* typography */
+    .brand-logo { font-family: 'Cormorant Garamond', serif; font-weight: 300; font-size: clamp(28px,7vw,38px); letter-spacing: 0.18em; color: var(--gold); margin-bottom: 6px; text-transform: uppercase; }
+    .brand-sub  { font-size: 10px; letter-spacing: 0.38em; text-transform: uppercase; color: var(--muted); margin-bottom: 52px; }
+    .step-label { font-size: 9px; letter-spacing: 0.45em; text-transform: uppercase; color: var(--gold); margin-bottom: 44px; }
+    .screen-title { font-family: 'Cormorant Garamond', serif; font-size: clamp(30px,7.5vw,44px); font-weight: 300; line-height: 1.2; text-align: center; margin-bottom: 14px; color: var(--text); }
+    .screen-sub   { font-size: 12px; letter-spacing: 0.1em; color: var(--muted); text-align: center; margin-bottom: 40px; line-height: 1.75; }
+
+    /* progress */
+    .progress-dots { display: flex; gap: 8px; margin-bottom: 40px; }
+    .dot { width: 4px; height: 4px; background: var(--muted); border-radius: 50%; transition: all 0.3s; }
+    .dot.active { background: var(--gold); width: 22px; border-radius: 2px; }
+
+    /* buttons */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+      padding: 14px 36px; border: 1px solid var(--gold); background: transparent;
+      color: var(--gold); font-family: 'Josefin Sans', sans-serif; font-size: 11px;
+      font-weight: 400; letter-spacing: 0.25em; text-transform: uppercase; cursor: pointer;
+      transition: all 0.3s ease; position: relative; overflow: hidden;
+    }
+    .btn::before { content: ''; position: absolute; inset: 0; background: var(--gold); transform: scaleX(0); transform-origin: left; transition: transform 0.3s ease; z-index: -1; }
+    .btn:hover { color: var(--bg); }
+    .btn:hover::before { transform: scaleX(1); }
+    .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+    .btn:disabled:hover { color: var(--gold); }
+    .btn:disabled:hover::before { transform: scaleX(0); }
+    .btn-ghost { border-color: var(--border); color: var(--muted); }
+    .btn-ghost::before { background: var(--surface); }
+    .btn-ghost:hover { color: var(--text); }
+
+    /* category pills */
+    .categories { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; margin-bottom: 40px; max-width: 360px; }
+    .cat-pill { padding: 14px 22px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-family: 'Josefin Sans', sans-serif; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; cursor: pointer; transition: all 0.25s ease; border-radius: 3px; }
+    .cat-pill.selected { border-color: var(--gold); color: var(--gold); background: rgba(201,168,76,0.06); }
+    .cat-pill:hover:not(.selected) { border-color: var(--silver); color: var(--silver); }
+
+    /* language pills */
+    .lang-options { display: flex; gap: 16px; margin-bottom: 40px; }
+    .lang-pill {
+      padding: 20px 28px; border: 1px solid var(--border); background: transparent;
+      color: var(--muted); cursor: pointer; transition: all 0.25s ease; border-radius: 3px;
+      display: flex; flex-direction: column; align-items: center; gap: 10px; min-width: 110px;
+    }
+    .lang-pill-code { font-family: 'Josefin Sans', sans-serif; font-size: 10px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--muted); transition: color 0.25s; }
+    .lang-pill-name { font-family: 'Josefin Sans', sans-serif; font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); transition: color 0.25s; }
+    .lang-pill.selected { border-color: var(--gold); background: rgba(201,168,76,0.06); }
+    .lang-pill.selected .lang-pill-code,
+    .lang-pill.selected .lang-pill-name { color: var(--gold); }
+    .lang-pill:hover:not(.selected) { border-color: var(--silver); }
+    .lang-pill:hover:not(.selected) .lang-pill-code,
+    .lang-pill:hover:not(.selected) .lang-pill-name { color: var(--silver); }
+
+    /* drum roll */
+    .drum-wrap { display: flex; align-items: center; gap: 8px; margin-bottom: 40px; user-select: none; -webkit-user-select: none; }
+    .drum-sep { font-family: 'Cormorant Garamond', serif; font-size: 52px; font-weight: 300; color: var(--gold); opacity: 0.5; line-height: 1; padding-bottom: 4px; }
+    .drum-col { width: 80px; height: 180px; position: relative; overflow: hidden; border: 1px solid var(--border); background: var(--surface); border-radius: 4px; cursor: grab; }
+    .drum-col:active { cursor: grabbing; }
+    .drum-col::before,.drum-col::after { content: ''; position: absolute; left: 0; right: 0; height: 60px; z-index: 2; pointer-events: none; }
+    .drum-col::before { top: 0; background: linear-gradient(to bottom, var(--surface), transparent); }
+    .drum-col::after  { bottom: 0; background: linear-gradient(to top, var(--surface), transparent); }
+    .drum-sel-top,.drum-sel-bot { position: absolute; left: 10px; right: 10px; height: 1px; background: var(--gold); opacity: 0.25; z-index: 3; pointer-events: none; }
+    .drum-sel-top { top: calc(50% - 26px); }
+    .drum-sel-bot { top: calc(50% + 25px); }
+    .drum-col-inner { display: flex; flex-direction: column; align-items: center; transition: transform 0.15s cubic-bezier(0.25,0.46,0.45,0.94); }
+    .drum-item { height: 52px; display: flex; align-items: center; justify-content: center; font-family: 'Cormorant Garamond', serif; font-size: 36px; font-weight: 300; color: var(--muted); transition: color 0.15s; flex-shrink: 0; width: 100%; }
+    .drum-item.selected { color: var(--text); }
+    .drum-label { font-size: 10px; letter-spacing: 0.28em; text-transform: uppercase; color: var(--muted); margin-top: 10px; text-align: center; }
+
+    /* main screen */
+    #screen-main { justify-content: space-between; padding: calc(56px + env(safe-area-inset-top)) 32px calc(40px + env(safe-area-inset-bottom)); }
+    .main-header { width: 100%; display: flex; justify-content: space-between; align-items: center; }
+    .main-logo { font-family: 'Cormorant Garamond', serif; font-size: 16px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold); font-weight: 300; }
+    .header-actions { display: flex; gap: 4px; }
+    .icon-action { background: none; border: none; color: var(--muted); cursor: pointer; padding: 7px; transition: color 0.2s; display: flex; align-items: center; border-radius: 50%; }
+    .icon-action:hover { color: var(--silver); }
+
+    .quote-area { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px 0; max-width: 480px; width: 100%; }
+    .quote-category { font-size: 9px; letter-spacing: 0.5em; text-transform: uppercase; color: var(--gold); margin-bottom: 28px; animation: fadeUp 0.8s ease 0.2s both; }
+    .quote-ornament { font-family: 'Cormorant Garamond', serif; font-size: 72px; line-height: 0.6; color: var(--gold); opacity: 0.1; margin-bottom: 18px; animation: fadeUp 0.8s ease 0.3s both; }
+    .quote-text { font-family: 'Cormorant Garamond', serif; font-size: clamp(20px,5.2vw,30px); font-weight: 300; font-style: italic; line-height: 1.55; color: var(--text); margin-bottom: 28px; animation: fadeUp 0.8s ease 0.4s both; }
+    .quote-divider { width: 36px; height: 1px; background: var(--gold); margin: 0 auto 18px; opacity: 0.5; animation: fadeUp 0.8s ease 0.52s both; }
+    .quote-author { font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--silver); animation: fadeUp 0.8s ease 0.62s both; }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
+
+    .main-footer { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+    .next-quote { font-size: 10px; letter-spacing: 0.22em; color: var(--muted); }
+    .next-quote span { color: var(--gold); }
+    .action-row { display: flex; gap: 10px; }
+    .icon-btn { background: none; border: 1px solid var(--border); color: var(--muted); cursor: pointer; padding: 11px 15px; transition: all 0.2s; display: flex; align-items: center; border-radius: 2px; }
+    .icon-btn:hover { border-color: var(--gold); color: var(--gold); }
+
+    /* settings — all centred */
+    #screen-settings { justify-content: flex-start; padding-top: calc(80px + env(safe-area-inset-top)); align-items: center; }
+    .settings-section { width: 100%; max-width: 360px; margin-bottom: 32px; display: flex; flex-direction: column; align-items: center; text-align: center; }
+    .settings-label { font-size: 9px; letter-spacing: 0.4em; text-transform: uppercase; color: var(--gold); margin-bottom: 18px; }
+    .back-btn { position: absolute; top: calc(28px + env(safe-area-inset-top)); left: 28px; background: none; border: none; color: var(--muted); cursor: pointer; font-family: 'Josefin Sans', sans-serif; font-size: 10px; letter-spacing: 0.25em; text-transform: uppercase; display: flex; align-items: center; gap: 8px; transition: color 0.2s; }
+    .back-btn:hover { color: var(--text); }
+
+    /* favourites screen */
+    #screen-favourites { justify-content: flex-start; padding-top: calc(80px + env(safe-area-inset-top)); }
+    .fav-list { width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 16px; padding-bottom: 32px; }
+    .fav-empty { font-family: 'Cormorant Garamond', serif; font-size: 20px; font-style: italic; color: var(--muted); text-align: center; margin-top: 20px; }
+    .fav-item { border: 1px solid var(--border); padding: 18px 20px; position: relative; background: var(--surface); border-radius: 3px; transition: border-color 0.2s; }
+    .fav-item:hover { border-color: rgba(160,185,230,0.2); }
+    .fav-item-text { font-family: 'Cormorant Garamond', serif; font-size: 16px; font-style: italic; color: var(--text); line-height: 1.55; margin-bottom: 10px; }
+    .fav-item-author { font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
+    .fav-item-remove { position: absolute; top: 12px; right: 12px; background: none; border: none; color: var(--muted); cursor: pointer; font-size: 14px; padding: 4px; transition: color 0.2s; line-height: 1; }
+    .fav-item-remove:hover { color: var(--gold); }
+    .fav-item-share { position: absolute; bottom: 12px; right: 12px; background: none; border: none; color: var(--muted); cursor: pointer; padding: 4px; transition: color 0.2s; display: flex; align-items: center; }
+    .fav-item-share:hover { color: var(--gold); }
+
+    /* report screen */
+    #screen-report { justify-content: flex-start; padding-top: calc(80px + env(safe-area-inset-top)); }
+    .report-options { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 360px; margin-bottom: 32px; }
+    .report-opt { padding: 16px 20px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-family: 'Josefin Sans', sans-serif; font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; cursor: pointer; transition: all 0.2s; text-align: left; display: flex; align-items: center; gap: 14px; border-radius: 2px; }
+    .report-opt:hover { border-color: var(--gold); color: var(--gold); }
+    .report-opt-icon { font-size: 15px; opacity: 0.7; flex-shrink: 0; }
+    .report-textarea { width: 100%; max-width: 360px; background: var(--surface); border: 1px solid var(--border); color: var(--text); font-family: 'Josefin Sans', sans-serif; font-size: 12px; padding: 16px; resize: none; height: 120px; outline: none; letter-spacing: 0.05em; line-height: 1.6; margin-bottom: 16px; border-radius: 2px; transition: border-color 0.2s; }
+    .report-textarea:focus { border-color: var(--gold); }
+    .report-textarea::placeholder { color: var(--muted); }
+    #report-form { display: none; width: 100%; align-items: center; flex-direction: column; }
+    #report-form.visible { display: flex; }
+
+    .notification-status { font-size: 10px; color: var(--muted); letter-spacing: 0.1em; margin-top: 12px; }
+    .notification-status.granted { color: var(--gold); }
+
+    .notif-banner { position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--surface); border: 1px solid var(--border); padding: 14px 24px; font-size: 11px; letter-spacing: 0.1em; color: var(--text); white-space: nowrap; transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1); z-index: 200; border-radius: 2px; }
+    .notif-banner.show { transform: translateX(-50%) translateY(0); }
+
+    .install-hint { font-size: 10px; color: var(--muted); text-align: center; letter-spacing: 0.08em; line-height: 1.7; margin-top: 20px; padding: 16px; border: 1px solid var(--border); max-width: 300px; border-radius: 2px; }
+    .install-hint strong { color: var(--text); }
+
+    /* welcome circles */
+    .welcome-bg { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+    .welcome-bg::before,.welcome-bg::after { content: ''; position: absolute; border: 1px solid rgba(60,100,200,0.07); border-radius: 50%; }
+    .welcome-bg::before { width: 500px; height: 500px; top: 50%; left: 50%; transform: translate(-50%,-50%); }
+    .welcome-bg::after  { width: 720px; height: 720px; top: 50%; left: 50%; transform: translate(-50%,-50%); }
+
+    .spinner { width: 18px; height: 18px; border: 1px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    ::-webkit-scrollbar { width: 3px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div class="glow glow-1"></div>
+  <div class="glow glow-2"></div>
+  <div class="glow glow-3"></div>
+
+  <!-- WELCOME -->
+  <div class="screen active" id="screen-welcome">
+    <div class="welcome-bg"></div>
+    <div class="brand-logo">Quoterly</div>
+    <div class="brand-sub">Your daily quote</div>
+    <h1 class="screen-title" id="welcome-title">Words that<br/><em>shift perspective</em></h1>
+    <p class="screen-sub" id="welcome-sub">One quote every day from the world's<br/>greatest thinkers, leaders &amp; philosophers.</p>
+    <button class="btn" id="welcome-btn" onclick="goTo('screen-categories')">Get started &rarr;</button>
+  </div>
+
+  <!-- CATEGORIES -->
+  <div class="screen" id="screen-categories">
+    <div class="progress-dots"><div class="dot active"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+    <p class="step-label" id="cats-step">Step 1 of 4</p>
+    <h2 class="screen-title" id="cats-title">What inspires<br/><em>you most?</em></h2>
+    <p class="screen-sub" id="cats-sub">Choose one or both categories</p>
+    <div class="categories" id="cat-container">
+      <button class="cat-pill" data-cat="business">◈ Business &amp; Motivation</button>
+      <button class="cat-pill" data-cat="philosophy">◎ Philosophy &amp; Science</button>
+    </div>
+    <button class="btn" id="btn-cats-next" disabled onclick="goTo('screen-language')">Pokračovat →</button>
+  </div>
+
+  <!-- LANGUAGE -->
+  <div class="screen" id="screen-language">
+    <div class="progress-dots"><div class="dot"></div><div class="dot active"></div><div class="dot"></div><div class="dot"></div></div>
+    <p class="step-label" id="lang-step">Step 2 of 4</p>
+    <h2 class="screen-title" id="lang-title">Quote<br/><em>language?</em></h2>
+    <p class="screen-sub" id="lang-sub">Quotes are originally in English.<br/>We can translate them for you.</p>
+    <div class="lang-options">
+      <button class="lang-pill" data-lang="en" onclick="selectLang('en')">
+        <span class="lang-pill-code">EN</span>
+        <span class="lang-pill-name">English</span>
+      </button>
+      <button class="lang-pill" data-lang="cs" onclick="selectLang('cs')">
+        <span class="lang-pill-code">CZ</span>
+        <span class="lang-pill-name">Česky</span>
+      </button>
+    </div>
+    <button class="btn" id="btn-lang-next" disabled onclick="goTo('screen-time')">Pokračovat →</button>
+  </div>
+
+  <!-- TIME -->
+  <div class="screen" id="screen-time">
+    <div class="progress-dots"><div class="dot"></div><div class="dot"></div><div class="dot active"></div><div class="dot"></div></div>
+    <p class="step-label" id="time-step">Step 3 of 4</p>
+    <h2 class="screen-title" id="time-title">When should<br/>your quote <em>arrive?</em></h2>
+    <p class="screen-sub" id="time-sub">Pick your daily delivery time</p>
+    <div class="drum-wrap">
+      <div>
+        <div class="drum-col" id="drum-h"><div class="drum-sel-top"></div><div class="drum-sel-bot"></div><div class="drum-col-inner" id="drum-h-inner"></div></div>
+        <div class="drum-label drum-label-hour">Hour</div>
+      </div>
+      <div class="drum-sep">:</div>
+      <div>
+        <div class="drum-col" id="drum-m"><div class="drum-sel-top"></div><div class="drum-sel-bot"></div><div class="drum-col-inner" id="drum-m-inner"></div></div>
+        <div class="drum-label drum-label-min">Minute</div>
+      </div>
+    </div>
+    <button class="btn" id="time-btn" onclick="goTo('screen-notify')">Continue &rarr;</button>
+  </div>
+
+  <!-- NOTIFICATIONS -->
+  <div class="screen" id="screen-notify">
+    <div class="progress-dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot active"></div></div>
+    <p class="step-label" id="notif-step">Step 4 of 4</p>
+    <h2 class="screen-title" id="notif-title">Enable<br/><em>notifications</em></h2>
+    <p class="screen-sub" id="notif-sub">One notification per day — nothing more.<br/>We\'ll remind you at your chosen time.</p>
+    <button class="btn" id="btn-notif" onclick="requestNotifications()">Allow notifications &rarr;</button>
+    <div class="notification-status" id="notif-status"></div>
+    <div class="install-hint" id="ios-hint" style="display:none">
+      📲 <strong>iPhone?</strong> Add to home screen via Safari:<br/>
+      Share → <strong>Add to Home Screen</strong><br/>
+      Notifications only work from the installed icon.
+    </div>
+    <button class="btn-ghost btn" id="skip-notif" style="margin-top:20px" onclick="skipNotify()">Skip for now</button>
+  </div>
+
+  <!-- MAIN -->
+  <div class="screen" id="screen-main">
+    <div class="main-header">
+      <span class="main-logo">Quoterly</span>
+      <div class="header-actions">
+        <button class="icon-action" title="Favourites" onclick="openFavourites()">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        </button>
+        <button class="icon-action" title="Report issue" onclick="goTo('screen-report')">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r="0.5" fill="currentColor"/></svg>
+        </button>
+        <button class="icon-action" title="Settings" onclick="goTo('screen-settings')">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="quote-area" id="quote-area">
+      <div class="quote-category" id="q-category">Daily Quote</div>
+      <div class="quote-ornament">&ldquo;</div>
+      <p class="quote-text" id="q-text"><span class="spinner"></span></p>
+      <div class="quote-divider"></div>
+      <p class="quote-author" id="q-author">—</p>
+    </div>
+
+    <div class="main-footer">
+      <div class="next-quote" id="next-quote-text">Next quote tomorrow at <span id="next-time">08:00</span></div>
+      <div class="action-row">
+        <button class="icon-btn" title="Share" onclick="shareQuote()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        </button>
+        <button class="icon-btn" title="New quote" onclick="loadQuote(true)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        </button>
+        <button class="icon-btn" title="Favourite" id="fav-btn" onclick="toggleFav()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="screen" id="screen-settings">
+    <button class="back-btn" onclick="goTo('screen-main')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="15 18 9 12 15 6"/></svg>
+      <span class="back-btn-text">Back</span>
+    </button>
+    <h2 class="screen-title" id="settings-title" style="margin-bottom:44px">Settings</h2>
+
+    <div class="settings-section">
+      <div class="settings-label settings-label-time">Delivery time</div>
+      <div class="drum-wrap">
+        <div>
+          <div class="drum-col" id="drum-h-s"><div class="drum-sel-top"></div><div class="drum-sel-bot"></div><div class="drum-col-inner" id="drum-h-s-inner"></div></div>
+          <div class="drum-label drum-label-hour">Hour</div>
+        </div>
+        <div class="drum-sep">:</div>
+        <div>
+          <div class="drum-col" id="drum-m-s"><div class="drum-sel-top"></div><div class="drum-sel-bot"></div><div class="drum-col-inner" id="drum-m-s-inner"></div></div>
+          <div class="drum-label drum-label-min">Minute</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-label settings-label-cats">Categories</div>
+      <div class="categories" id="cat-settings">
+        <button class="cat-pill" data-cat="business">◈ Business &amp; Motivation</button>
+        <button class="cat-pill" data-cat="philosophy">◎ Philosophy &amp; Science</button>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-label settings-label-lang">Language</div>
+      <div class="lang-options" style="margin-bottom:0">
+        <button class="lang-pill" data-lang="en" onclick="selectLangSettings('en')">
+          <span class="lang-pill-code">EN</span>
+          <span class="lang-pill-name">English</span>
+        </button>
+        <button class="lang-pill" data-lang="cs" onclick="selectLangSettings('cs')">
+          <span class="lang-pill-code">CZ</span>
+          <span class="lang-pill-name">Česky</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-label settings-label-notif">Notifications</div>
+      <button class="btn" id="btn-renotif" onclick="requestNotifications()">Re-enable notifications</button>
+      <div class="notification-status" id="notif-status-2"></div>
+    </div>
+  </div>
+
+  <!-- FAVOURITES -->
+  <div class="screen" id="screen-favourites">
+    <button class="back-btn" onclick="goTo('screen-main')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="15 18 9 12 15 6"/></svg>
+      <span class="back-btn-text">Back</span>
+    </button>
+    <h2 class="screen-title" id="fav-title" style="margin-bottom:32px">Favourites</h2>
+    <div class="fav-list" id="fav-list"></div>
+  </div>
+
+  <!-- REPORT -->
+  <div class="screen" id="screen-report">
+    <button class="back-btn" onclick="goTo('screen-main')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="15 18 9 12 15 6"/></svg>
+      <span class="back-btn-text">Back</span>
+    </button>
+    <h2 class="screen-title" id="report-title" style="margin-bottom:12px">Report an issue</h2>
+    <p class="screen-sub" id="report-sub-text" style="margin-bottom:32px">What would you like to report?</p>
+    <div class="report-options" id="report-options">
+      <button class="report-opt" onclick="selectReport('wrong')">
+        <span class="report-opt-icon">✗</span> Wrong or misattributed quote
+      </button>
+      <button class="report-opt" onclick="selectReport('trans')">
+        <span class="report-opt-icon">⟳</span> Translation error
+      </button>
+      <button class="report-opt" onclick="selectReport('tech')">
+        <span class="report-opt-icon">⚙</span> Technical problem
+      </button>
+      <button class="report-opt" onclick="selectReport('suggest')">
+        <span class="report-opt-icon">◇</span> Suggestion for improvement
+      </button>
+    </div>
+    <div id="report-form">
+      <p class="screen-sub" id="report-form-label" style="margin-bottom:16px;font-size:11px"></p>
+      <textarea class="report-textarea" id="report-textarea" placeholder="Describe the issue or suggestion (optional)..."></textarea>
+      <button class="btn" id="btn-report-send" onclick="sendReport()" style="margin-bottom:12px">Send report →</button>
+      <button class="btn-ghost btn" id="btn-report-back" onclick="resetReport()">← Different category</button>
+    </div>
+  </div>
+
+  <div class="notif-banner" id="banner"></div>
+</div>
+
+<script>
+// ══ RESET ON ?reset param ══
+if(location.search.includes("reset")){["quoterly_state","quoterly_cache_v2","quoterly_trans_v2"].forEach(k=>localStorage.removeItem(k));history.replaceState(null,"",location.pathname);}
+// ══ STATE ══
+let state = { categories: [], language: null, time: '08:00', onboarded: false, currentQuote: null, favs: [] };
+let reportCategory = '';
+
+// ══ FALLBACK ══
+const FALLBACK = [
+  { text: "The only way to do great work is to love what you do.", author: "Steve Jobs" },
+  { text: "Imagination is more important than knowledge.", author: "Albert Einstein" },
+  { text: "We are not troubled by things, but by our opinions of them.", author: "Epictetus" },
+  { text: "The obstacle in the path becomes the path.", author: "Marcus Aurelius" },
+  { text: "Be the change you wish to see in the world.", author: "Mahatma Gandhi" },
+  { text: "Science is not a body of knowledge. It\'s a way of thinking.", author: "Carl Sagan" },
+  { text: "Creativity is intelligence having fun.", author: "Albert Einstein" },
+  { text: "Wealth consists not in having great possessions, but in having few wants.", author: "Epictetus" },
+  { text: "I know that I know nothing.", author: "Socrates" },
+  { text: "Inspiration exists, but it has to find you working.", author: "Pablo Picasso" },
+  { text: "The journey of a thousand miles begins with a single step.", author: "Unknown" },
+  { text: "In the middle of difficulty lies opportunity.", author: "Unknown" },
+];
+
+// ══ API ══
+const CACHE_KEY = 'quoterly_cache_v2';
+const ZEN_URL   = 'https://api.allorigins.win/get?url=' + encodeURIComponent('https://zenquotes.io/api/quotes');
+
+async function fetchFromZenQuotes() {
+  try {
+    const res = await fetch(ZEN_URL, { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const wrapper = await res.json();
+    const quotes = JSON.parse(wrapper.contents);
+    if (!Array.isArray(quotes) || !quotes.length) throw new Error('empty');
+    return quotes.map(q => ({ text: q.q, author: (!q.a || q.a.toLowerCase() === 'unknown' || !q.a.trim()) ? 'Unknown' : q.a }));
+  } catch (e) { console.warn('ZenQuotes:', e.message); return null; }
+}
+
+async function getQuotePool() {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (raw) {
+      const { quotes, fetchedAt } = JSON.parse(raw);
+      if ((Date.now() - fetchedAt) / 3600000 < 24 && quotes.length) return quotes;
+    }
+  } catch (_) {}
+  const fresh = await fetchFromZenQuotes();
+  if (fresh && fresh.length) {
+    try { localStorage.setItem(CACHE_KEY, JSON.stringify({ quotes: fresh, fetchedAt: Date.now() })); } catch (_) {}
+    return fresh;
+  }
+  return FALLBACK;
+}
+
+// ══ TRANSLATION ══
+const TRANS_KEY = 'quoterly_trans_v2';
+async function translateQuote(text) {
+  // Check cache first
+  try {
+    const c = JSON.parse(localStorage.getItem(TRANS_KEY)||'{}');
+    if (c[text]) return c[text];
+  } catch (_) {}
+
+  try {
+    // MyMemory free translation API — no key required, works from browser
+    const url = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(text) + '&langpair=en|cs';
+    const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    const translated = data.responseData?.translatedText?.trim();
+    // MyMemory returns original if translation fails
+    if (translated && translated.toLowerCase() !== text.toLowerCase()) {
+      try {
+        const c = JSON.parse(localStorage.getItem(TRANS_KEY)||'{}');
+        const keys = Object.keys(c);
+        if (keys.length > 200) delete c[keys[0]];
+        c[text] = translated;
+        localStorage.setItem(TRANS_KEY, JSON.stringify(c));
+      } catch(_) {}
+      return translated;
+    }
+  } catch (e) { console.warn('Translation failed:', e.message); }
+  return text; // fallback: original English
+}
+
+// ══ DRUM ROLL ══
+const HOURS=[...Array(24).keys()], MINUTES=[0,5,10,15,20,25,30,35,40,45,50,55], ITEM_H=52, PAD=3;
+function buildDrum(colEl, innerEl, items, initIndex, onChange) {
+  let idx = Math.max(0, Math.min(items.length-1, initIndex));
+  innerEl.innerHTML = '';
+  [...Array(PAD).fill(null), ...items, ...Array(PAD).fill(null)].forEach(item => {
+    const d = document.createElement('div'); d.className = 'drum-item';
+    d.textContent = item !== null ? String(item).padStart(2,'0') : ''; innerEl.appendChild(d);
+  });
+  const offset = i => -(i+PAD)*ITEM_H + colEl.clientHeight/2 - ITEM_H/2;
+  const refresh = (anim) => {
+    innerEl.style.transition = anim ? 'transform 0.18s cubic-bezier(0.25,0.46,0.45,0.94)' : 'none';
+    innerEl.style.transform = `translateY(${offset(idx)}px)`;
+    innerEl.querySelectorAll('.drum-item').forEach((el,i) => el.classList.toggle('selected', i===idx+PAD));
+  };
+  refresh(false);
+  const clamp = v => Math.max(0, Math.min(items.length-1, v));
+  let sY=0, sI=0, dr=false;
+  colEl.addEventListener('mousedown', e=>{sY=e.clientY;sI=idx;dr=true;});
+  let lastMHapticIdx=initIndex;
+  window.addEventListener('mousemove', e=>{if(!dr)return;const pi=idx;idx=clamp(sI+Math.round((sY-e.clientY)/ITEM_H));if(idx!==pi){haptics.drum();playDrumTick();lastMHapticIdx=idx;}innerEl.style.transition='none';innerEl.style.transform=`translateY(${offset(idx)}px)`;innerEl.querySelectorAll('.drum-item').forEach((el,i)=>el.classList.toggle('selected',i===idx+PAD));});
+  window.addEventListener('mouseup', ()=>{if(!dr)return;dr=false;refresh(true);onChange(items[idx]);});
+  colEl.addEventListener('touchstart',e=>{e.preventDefault();sY=e.touches[0].clientY;sI=idx;dr=true;},{passive:false});
+  let lastHapticIdx=initIndex;
+  colEl.addEventListener('touchmove',e=>{e.preventDefault();if(!dr)return;idx=clamp(sI+Math.round((sY-e.touches[0].clientY)/ITEM_H));if(idx!==lastHapticIdx){haptics.drum();playDrumTick();lastHapticIdx=idx;}innerEl.style.transition='none';innerEl.style.transform=`translateY(${offset(idx)}px)`;innerEl.querySelectorAll('.drum-item').forEach((el,i)=>el.classList.toggle('selected',i===idx+PAD));},{passive:false});
+  colEl.addEventListener('touchend',()=>{if(!dr)return;dr=false;refresh(true);onChange(items[idx]);});
+  colEl.addEventListener('wheel',e=>{e.preventDefault();const pw=idx;idx=clamp(idx+(e.deltaY>0?1:-1));if(idx!==pw){haptics.drum();playDrumTick();}refresh(true);onChange(items[idx]);},{passive:false});
+  return { setIndex(i){idx=clamp(i);refresh(false);} };
+}
+let dH,dM,dHS,dMS;
+const pad = n=>String(n).padStart(2,'0');
+function initDrums(){
+  const[h,m]=state.time.split(':').map(Number);
+  const mIdx=Math.round(m/5)%12;
+  dH =buildDrum(document.getElementById('drum-h'),  document.getElementById('drum-h-inner'),  HOURS,h,     v=>{state.time=pad(v)+':'+state.time.split(':')[1];});
+  dM =buildDrum(document.getElementById('drum-m'),  document.getElementById('drum-m-inner'),  MINUTES,mIdx,v=>{state.time=state.time.split(':')[0]+':'+pad(v);});
+  dHS=buildDrum(document.getElementById('drum-h-s'),document.getElementById('drum-h-s-inner'),HOURS,h,     v=>{state.time=pad(v)+':'+state.time.split(':')[1];onTimeChange();});
+  dMS=buildDrum(document.getElementById('drum-m-s'),document.getElementById('drum-m-s-inner'),MINUTES,mIdx,v=>{state.time=state.time.split(':')[0]+':'+pad(v);onTimeChange();});
+}
+function onTimeChange(){saveState();scheduleNotification();showBanner(t('banner_time',state.time));document.getElementById('next-time').textContent=state.time;}
+function syncDrums(){
+  const[h,m]=state.time.split(':').map(Number);
+  const mIdx=Math.round(m/5)%12;
+  dH&&dH.setIndex(h);dM&&dM.setIndex(mIdx);dHS&&dHS.setIndex(h);dMS&&dMS.setIndex(mIdx);
+}
+
+
+// ══ i18n — UI STRINGS ══
+// Before language is chosen (onboarding steps 1-2) = Czech.
+// After choosing EN → all UI switches to English.
+// After choosing CZ → stays Czech.
+const T = {
+  cs: {
+    // onboarding
+    welcome_title:   'Slova, která<br/><em>mění perspektivu</em>',
+    welcome_sub:     'Jeden citát každý den od největších<br/>myslitelů, lídrů a filozofů světa.',
+    welcome_btn:     'Začít →',
+    step:            (n,t) => `Krok ${n} z ${t}`,
+    cats_title:      'Co tě<br/><em>nejvíce inspiruje?</em>',
+    cats_sub:        'Vyber jednu nebo obě kategorie',
+    cats_btn:        'Pokračovat →',
+    lang_title:      'Jazyk<br/><em>citátů?</em>',
+    lang_sub:        'Citáty jsou původně v angličtině.<br/>Můžeme je pro tebe přeložit.',
+    lang_btn:        'Pokračovat →',
+    time_title:      'Kdy má tvůj citát<br/><em>dorazit?</em>',
+    time_sub:        'Zvol čas denního doručení',
+    time_btn:        'Pokračovat →',
+    time_hour:       'Hodina',
+    time_minute:     'Minuta',
+    notif_title:     'Povolit<br/><em>oznámení</em>',
+    notif_sub:       'Jedno oznámení denně — nic víc.<br/>Připomeneme ti to ve zvolenou hodinu.',
+    notif_btn:       'Povolit oznámení →',
+    notif_skip:      'Přeskočit',
+    notif_ios:       '📲 <strong>iPhone?</strong> Přidej na plochu přes Safari:<br/>Sdílet → <strong>Přidat na plochu</strong><br/>Oznámení fungují pouze z nainstalované ikony.',
+    // main
+    next_quote:      (t) => `Příští citát zítra v ${t}`,
+    daily_label:     'Denní citát',
+    // settings
+    settings_title:  'Nastavení',
+    settings_time:   'Čas doručení',
+    settings_cats:   'Kategorie',
+    settings_lang:   'Jazyk',
+    settings_notif:  'Oznámení',
+    settings_renotif:'Znovu povolit oznámení',
+    back:            'Zpět',
+    // favourites
+    fav_title:       'Oblíbené',
+    fav_empty:       'Zatím žádné oblíbené.<br/>Klepni na ♥ u libovolného citátu.',
+    // report
+    report_title:    'Nahlásit problém',
+    report_sub:      'Co chceš nahlásit?',
+    report_wrong:    'Chybný nebo špatně připsaný citát',
+    report_trans:    'Chyba v překladu',
+    report_tech:     'Technický problém',
+    report_suggest:  'Návrh na zlepšení',
+    report_ph:       'Popiš problém nebo návrh (volitelné)...',
+    report_send:     'Odeslat →',
+    report_back:     '← Jiná kategorie',
+    report_desc_wrong:   'Zobrazený citát je nesprávný nebo špatně připsaný.',
+    report_desc_trans:   'Český překlad obsahuje chybu.',
+    report_desc_tech:    'Něco v aplikaci nefunguje správně.',
+    report_desc_suggest: 'Mám nápad nebo návrh na zlepšení.',
+    // banners
+    banner_time:     (t) => `Čas uložen: ${t}`,
+    banner_fav_add:  'Přidáno do oblíbených ♥',
+    banner_fav_rem:  'Odebráno z oblíbených',
+    banner_copied:   'Zkopírováno do schránky',
+    banner_notif_on: 'Oznámení povolena ✓',
+    banner_notif_off:'Oznámení nebyla povolena',
+    banner_notif_no: 'Oznámení nejsou podporována',
+    banner_email:    'Emailová aplikace otevřena ✓',
+    banner_lang:     'Jazyk: Čeština',
+    banner_update:   'Nová verze — <strong style="cursor:pointer;text-decoration:underline;color:var(--gold)" onclick="location.reload()">klepni pro aktualizaci</strong>',
+    notif_granted:   'Oznámení jsou povolena ✓',
+    notif_denied:    'Oznámení jsou zakázána ✗',
+    notif_default:   'Oznámení nebyla nastavena',
+    notif_unsupported:'Prohlížeč nepodporuje oznámení',
+    ios_notif_hint: 'Na iPhone notifikace fungují spolehlivě pouze pokud appku každý den otevřeš před nastavenou hodinou. Apple bohužel neumožňuje PWA aplikacím běžet na pozadí.',
+    // categories
+    cat_business:    '◈ Business & Motivace',
+    cat_philosophy:  '◎ Filozofie & Věda',
+  },
+  en: {
+    welcome_title:   'Words that<br/><em>shift perspective</em>',
+    welcome_sub:     'One quote every day from the world\'s<br/>greatest thinkers, leaders & philosophers.',
+    welcome_btn:     'Get started →',
+    step:            (n,t) => `Step ${n} of ${t}`,
+    cats_title:      'What inspires<br/><em>you most?</em>',
+    cats_sub:        'Choose one or both categories',
+    cats_btn:        'Continue →',
+    lang_title:      'Quote<br/><em>language?</em>',
+    lang_sub:        'Quotes are originally in English.<br/>We can translate them for you.',
+    lang_btn:        'Continue →',
+    time_title:      'When should<br/>your quote <em>arrive?</em>',
+    time_sub:        'Pick your daily delivery time',
+    time_btn:        'Continue →',
+    time_hour:       'Hour',
+    time_minute:     'Minute',
+    notif_title:     'Enable<br/><em>notifications</em>',
+    notif_sub:       'One notification per day — nothing more.<br/>We\'ll remind you at your chosen time.',
+    notif_btn:       'Allow notifications →',
+    notif_skip:      'Skip for now',
+    notif_ios:       '📲 <strong>iPhone?</strong> Add to home screen via Safari:<br/>Share → <strong>Add to Home Screen</strong><br/>Notifications only work from the installed icon.',
+    next_quote:      (t) => `Next quote tomorrow at ${t}`,
+    daily_label:     'Daily quote',
+    settings_title:  'Settings',
+    settings_time:   'Delivery time',
+    settings_cats:   'Categories',
+    settings_lang:   'Language',
+    settings_notif:  'Notifications',
+    settings_renotif:'Re-enable notifications',
+    back:            'Back',
+    fav_title:       'Favourites',
+    fav_empty:       'No favourites yet.<br/>Tap ♥ on any quote to save it.',
+    report_title:    'Report an issue',
+    report_sub:      'What would you like to report?',
+    report_wrong:    'Wrong or misattributed quote',
+    report_trans:    'Translation error',
+    report_tech:     'Technical problem',
+    report_suggest:  'Suggestion for improvement',
+    report_ph:       'Describe the issue or suggestion (optional)...',
+    report_send:     'Send report →',
+    report_back:     '← Different category',
+    report_desc_wrong:   'The displayed quote is incorrect or misattributed.',
+    report_desc_trans:   'The Czech translation contains an error.',
+    report_desc_tech:    'Something in the app is not working correctly.',
+    report_desc_suggest: 'I have an idea or suggestion for improvement.',
+    banner_time:     (t) => `Time saved: ${t}`,
+    banner_fav_add:  'Added to favourites ♥',
+    banner_fav_rem:  'Removed from favourites',
+    banner_copied:   'Copied to clipboard',
+    banner_notif_on: 'Notifications enabled ✓',
+    banner_notif_off:'Notifications not allowed',
+    banner_notif_no: 'Notifications not supported',
+    banner_email:    'Email app opened ✓',
+    banner_lang:     'Language: English',
+    banner_update:   'New version available — <strong style="cursor:pointer;text-decoration:underline;color:var(--gold)" onclick="location.reload()">tap to refresh</strong>',
+    notif_granted:   'Notifications enabled ✓',
+    notif_denied:    'Notifications blocked ✗',
+    notif_default:   'Notifications not set up',
+    notif_unsupported:'Browser does not support notifications',
+    ios_notif_hint: 'On iPhone, notifications only work reliably if you open the app each day before your set time. Apple does not allow PWA apps to run in the background.',
+    cat_business:    '◈ Business & Motivation',
+    cat_philosophy:  '◎ Philosophy & Science',
+  }
+};
+
+// Returns translation; before language chosen = Czech
+function t(key, ...args) {
+  const lang = (state && state.language) || 'cs';
+  const str = T[lang][key];
+  if (typeof str === 'function') return str(...args);
+  return str || T['cs'][key] || key;
+}
+
+// Apply all translatable UI strings to DOM
+function applyTranslations() {
+  const lang = (state && state.language) || 'cs';
+
+  // Helpers
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.innerHTML = val; };
+  const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  const setAll = (sel, val) => document.querySelectorAll(sel).forEach(el => el.innerHTML = val);
+
+  // WELCOME
+  set('welcome-title', t('welcome_title'));
+  set('welcome-sub', t('welcome_sub'));
+  set('welcome-btn', t('welcome_btn'));
+
+  // CATEGORIES
+  set('cats-step', t('step', 1, 4));
+  set('cats-title', t('cats_title'));
+  setTxt('cats-sub', t('cats_sub'));
+  document.getElementById('btn-cats-next').innerHTML = t('cats_btn');
+  // Category pill labels
+  document.querySelectorAll('.cat-pill[data-cat="business"]').forEach(el => el.textContent = t('cat_business'));
+  document.querySelectorAll('.cat-pill[data-cat="philosophy"]').forEach(el => el.textContent = t('cat_philosophy'));
+
+  // LANGUAGE SCREEN
+  set('lang-step', t('step', 2, 4));
+  set('lang-title', t('lang_title'));
+  set('lang-sub', t('lang_sub'));
+  document.getElementById('btn-lang-next').innerHTML = t('lang_btn');
+
+  // TIME
+  set('time-step', t('step', 3, 4));
+  set('time-title', t('time_title'));
+  setTxt('time-sub', t('time_sub'));
+  document.getElementById('time-btn').innerHTML = t('time_btn');
+  document.querySelectorAll('.drum-label-hour').forEach(el => el.textContent = t('time_hour'));
+  document.querySelectorAll('.drum-label-min').forEach(el => el.textContent = t('time_minute'));
+
+  // NOTIFICATIONS
+  set('notif-step', t('step', 4, 4));
+  set('notif-title', t('notif_title'));
+  set('notif-sub', t('notif_sub'));
+  document.getElementById('btn-notif').innerHTML = t('notif_btn');
+  document.getElementById('skip-notif').innerHTML = t('notif_skip');
+  const iosHint = document.getElementById('ios-hint');
+  if (iosHint) iosHint.innerHTML = t('notif_ios');
+
+  // MAIN
+  const nextEl = document.getElementById('next-quote-text');
+  if (nextEl) nextEl.innerHTML = t('next_quote', `<span id="next-time">${state.time||'08:00'}</span>`);
+
+  // SETTINGS
+  set('settings-title', t('settings_title'));
+  document.querySelectorAll('.settings-label-time').forEach(el => el.textContent = t('settings_time'));
+  document.querySelectorAll('.settings-label-cats').forEach(el => el.textContent = t('settings_cats'));
+  document.querySelectorAll('.settings-label-lang').forEach(el => el.textContent = t('settings_lang'));
+  document.querySelectorAll('.settings-label-notif').forEach(el => el.textContent = t('settings_notif'));
+  const renotifBtn = document.getElementById('btn-renotif');
+  if (renotifBtn) renotifBtn.innerHTML = t('settings_renotif');
+  document.querySelectorAll('.back-btn-text').forEach(el => el.textContent = t('back'));
+
+  // FAVOURITES
+  set('fav-title', t('fav_title'));
+
+  // REPORT
+  set('report-title', t('report_title'));
+  set('report-sub-text', t('report_sub'));
+  document.getElementById('btn-report-send').innerHTML = t('report_send');
+  document.getElementById('btn-report-back').innerHTML = t('report_back');
+  document.getElementById('report-textarea').placeholder = t('report_ph');
+  // report options
+  const opts = document.querySelectorAll('.report-opt');
+  const keys = ['report_wrong','report_trans','report_tech','report_suggest'];
+  const icons = ['✗','⟳','⚙','◇'];
+  opts.forEach((opt, i) => {
+    opt.innerHTML = `<span class="report-opt-icon">${icons[i]}</span> ${t(keys[i])}`;
+  });
+
+  // Update notif status text
+  updateNotifStatus();
+}
+
+// ══ INIT ══
+function init(){
+  initDrums();
+  const saved=localStorage.getItem('quoterly_state');
+  if(saved){try{state={...state,...JSON.parse(saved)};}catch(_){} if(state.onboarded){syncDrums();syncSettingsUI();applyTranslations();loadQuote(false);goTo('screen-main');document.getElementById('next-time').textContent=state.time;updateNotifStatus();scheduleNotification();return;}}
+  applyTranslations();
+  if(/iphone|ipad/i.test(navigator.userAgent))document.getElementById('ios-hint').style.display='block';
+  setupCategoryPills('#cat-container');updateLangPills();
+  attachHaptics();
+}
+function saveState(){localStorage.setItem('quoterly_state',JSON.stringify(state));}
+
+// ══ NAV ══
+function goTo(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if(id==='screen-main')updateNotifStatus();
+  if(id==='screen-report'){resetReport();setTimeout(attachHaptics,50);}
+  if(id==='screen-favourites'){renderFavourites();setTimeout(attachHaptics,50);}
+  if(id==='screen-settings')setTimeout(attachHaptics,50);
+}
+
+// ══ CATEGORIES ══
+function setupCategoryPills(sel){
+  document.querySelectorAll(sel+' .cat-pill').forEach(pill=>{
+    if(state.categories.includes(pill.dataset.cat))pill.classList.add('selected');
+    pill.addEventListener('click',()=>{
+      pill.classList.toggle('selected');
+      state.categories=Array.from(document.querySelectorAll(sel+' .cat-pill.selected')).map(p=>p.dataset.cat);
+      syncCatPills();saveState();
+      const btn=document.getElementById('btn-cats-next');if(btn)btn.disabled=!state.categories.length;
+    });
+  });
+}
+function syncCatPills(){document.querySelectorAll('.cat-pill').forEach(p=>p.classList.toggle('selected',state.categories.includes(p.dataset.cat)));}
+
+// ══ LANGUAGE ══
+function selectLang(lang){state.language=lang;saveState();updateLangPills();document.getElementById('btn-lang-next').disabled=false;applyTranslations();}
+function selectLangSettings(lang){state.language=lang;saveState();updateLangPills();applyTranslations();loadQuote(true);showBanner(t('banner_lang'));}
+function updateLangPills(){document.querySelectorAll('.lang-pill').forEach(p=>p.classList.toggle('selected',p.dataset.lang===state.language));}
+function syncSettingsUI(){syncCatPills();setupCategoryPills('#cat-settings');updateLangPills();syncDrums();}
+
+// ══ QUOTES ══
+async function loadQuote(forceNew){
+  const area=document.getElementById('quote-area');
+  const lang=state.language||'en';
+  const catLabel=lang==='cs'?'Denní citát':'Daily quote';
+
+  // If not forced and we already have today's quote, just show it
+  const todayKey='quoterly_quote_date';
+  const todayStr=new Date().toDateString();
+  if(!forceNew && state.currentQuote && localStorage.getItem(todayKey)===todayStr){
+    const q=state.currentQuote;
+    document.getElementById('q-text').textContent=q.text;
+    document.getElementById('q-author').textContent='— '+q.author;
+    document.getElementById('q-category').textContent=catLabel;
+    const isFav=state.favs&&state.favs.some(f=>f.text===q.text);
+    const svg=document.querySelector('#fav-btn svg');if(svg)svg.style.fill=isFav?'var(--gold)':'none';
+    area.style.opacity='1';area.style.transform='translateY(0)';
+    return;
+  }
+
+  if(forceNew){area.style.transition='opacity 0.35s, transform 0.35s';area.style.opacity='0';area.style.transform='translateY(10px)';}
+  const pool=await getQuotePool();
+  const q=pool[Math.floor(Math.random()*pool.length)];
+  let displayText=q.text;
+  if(lang==='cs'){document.getElementById('q-text').innerHTML='<span class="spinner"></span>';document.getElementById('q-text').style.opacity='1';displayText=await translateQuote(q.text);}
+  const authorRaw=q.author||'';
+  const isUnknown=!authorRaw||authorRaw.toLowerCase()==='unknown'||!authorRaw.trim();
+  const author=isUnknown?(lang==='cs'?'Neznámý autor':'Unknown'):authorRaw;
+  state.currentQuote={text:displayText,originalText:q.text,author,cat:catLabel};
+  // Save today's date so we don't regenerate until tomorrow
+  try{localStorage.setItem(todayKey,todayStr);}catch(_){}
+  saveState();
+  const show=()=>{
+    document.getElementById('q-text').textContent=displayText;
+    document.getElementById('q-author').textContent='— '+author;
+    document.getElementById('q-category').textContent=catLabel;
+    const isFav=state.favs&&state.favs.some(f=>f.text===displayText);
+    const svg=document.querySelector('#fav-btn svg');if(svg)svg.style.fill=isFav?'var(--gold)':'none';
+    area.style.opacity='1';area.style.transform='translateY(0)';
+  };
+  if(forceNew)setTimeout(show,320);else show();
+}
+
+// ══ FAVOURITES ══
+function toggleFav(){
+  if(!state.currentQuote)return;
+  if(!state.favs)state.favs=[];
+  const idx=state.favs.findIndex(f=>f.text===state.currentQuote.text);
+  if(idx>-1){state.favs.splice(idx,1);document.querySelector('#fav-btn svg').style.fill='none';showBanner(t('banner_fav_rem'));}
+  else{state.favs.push(state.currentQuote);document.querySelector('#fav-btn svg').style.fill='var(--gold)';showBanner(t('banner_fav_add'));}
+  saveState();
+}
+function openFavourites(){goTo('screen-favourites');}
+function renderFavourites(){
+  const list=document.getElementById('fav-list');
+  if(!list)return;
+  if(!state.favs||!state.favs.length){list.innerHTML='<p class="fav-empty">'+t('fav_empty')+'</p>';return;}
+  list.innerHTML='';
+  [...state.favs].reverse().forEach((q,ri)=>{
+    const realIdx=state.favs.length-1-ri;
+    const div=document.createElement('div');div.className='fav-item';
+    div.innerHTML=`
+      <button class="fav-item-remove" onclick="removeFav(${realIdx})" title="Remove">✕</button>
+      <div class="fav-item-text">${q.text}</div>
+      <div class="fav-item-author">— ${q.author}</div>
+      <button class="fav-item-share" onclick="shareFavQuote(${realIdx})" title="Share">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+      </button>`;
+    list.appendChild(div);
+  });
+}
+function removeFav(idx){
+  if(!state.favs)return;
+  state.favs.splice(idx,1);saveState();renderFavourites();showBanner(t('banner_fav_rem'));
+}
+function shareFavQuote(idx){
+  const q=state.favs[idx];if(!q)return;
+  const text=`"${q.text}"\n— ${q.author}\n\nvia Quoterly`;
+  if(navigator.share)navigator.share({text});
+  else navigator.clipboard.writeText(text).then(()=>showBanner(t('banner_copied')));
+}
+
+// ══ SHARE ══
+function shareQuote(){
+  if(!state.currentQuote)return;
+  const text=`"${state.currentQuote.text}"\n— ${state.currentQuote.author}\n\nvia Quoterly`;
+  if(navigator.share)navigator.share({text});
+  else navigator.clipboard.writeText(text).then(()=>showBanner(t('banner_copied')));
+}
+
+// ══ REPORT ══
+function selectReport(type){
+  reportCategory=t('report_'+type);
+  document.getElementById('report-options').style.display='none';
+  document.getElementById('report-form-label').textContent=t('report_desc_'+type);
+  document.getElementById('report-form').classList.add('visible');
+}
+function resetReport(){reportCategory='';document.getElementById('report-textarea').value='';document.getElementById('report-options').style.display='flex';document.getElementById('report-form').classList.remove('visible');}
+function sendReport(){
+  const details=document.getElementById('report-textarea').value.trim();
+  const quote=state.currentQuote?`\n\nCurrent quote: "${state.currentQuote.text}" — ${state.currentQuote.author}`:'';
+  const bodyText=`Category: ${reportCategory}\n${details?'Details: '+details:''}${quote}\n\n---\nSent from Quoterly`;
+  const subject=encodeURIComponent('Quoterly: '+reportCategory);
+  const body=encodeURIComponent(bodyText);
+  const mailtoLink=`mailto:vojtech.moudry.work@gmail.com?subject=${subject}&body=${body}`;
+  // window.open works in standalone PWA mode; location.href often silently fails
+  const opened=window.open(mailtoLink,'_self');
+  if(!opened){ window.open(mailtoLink,'_blank'); }
+  setTimeout(()=>{showBanner(t('banner_email'));goTo('screen-main');},800);
+}
+
+// ══ NOTIFICATIONS ══
+async function requestNotifications(){
+  if(!('Notification'in window)){showBanner(t('banner_notif_no'));return;}
+  const perm=await Notification.requestPermission();
+  if(perm==='granted'){scheduleNotification();updateNotifStatus();showBanner(t('banner_notif_on'));if(!state.onboarded)finishOnboarding();}
+  else{showBanner(t('banner_notif_off'));updateNotifStatus();}
+}
+function skipNotify(){finishOnboarding();}
+function finishOnboarding(){state.onboarded=true;saveState();setupCategoryPills('#cat-settings');applyTranslations();loadQuote(false);document.getElementById('next-time').textContent=state.time;syncDrums();goTo('screen-main');setTimeout(attachHaptics,100);}
+function scheduleNotification(){
+  if(!('serviceWorker'in navigator)||Notification.permission!=='granted')return;
+  navigator.serviceWorker.ready.then(reg=>{
+    const[h,m]=state.time.split(':').map(Number);
+    const lang=state.language||'cs';
+    // Send hour+min so SW can re-arm itself after restart
+    if(reg.active) reg.active.postMessage({type:'SCHEDULE', hour:h, min:m, lang});
+  });
+}
+function updateNotifStatus(){
+  const perm='Notification'in window?Notification.permission:'not-supported';
+  const map={granted:t('notif_granted'),denied:t('notif_denied'),default:t('notif_default'),'not-supported':t('notif_unsupported')};
+  ['notif-status','notif-status-2'].forEach(id=>{const el=document.getElementById(id);if(el){el.textContent=map[perm]||'';el.className='notification-status'+(perm==='granted'?' granted':'');}});
+  // Show iOS hint on iPhone
+  const isIOS=/iphone|ipad/i.test(navigator.userAgent);
+  ['ios-notif-hint','ios-notif-hint-onboard'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){el.style.display=isIOS?'flex':'none';}
+  });
+  const hintText=t('ios_notif_hint');
+  ['ios-notif-hint-text','ios-notif-hint-onboard-text'].forEach(id=>{
+    const el=document.getElementById(id);if(el)el.textContent=hintText;
+  });
+}
+
+// ══ HAPTICS ══
+// navigator.vibrate() works on Android Chrome & Android PWA.
+// On iOS (16+) it's silently ignored — iOS only supports haptics via native APIs.
+// Patterns: light tap = 8ms, medium = 15ms, heavy = 25ms, double = [10,50,10]
+const haptics = {
+  light:  () => navigator.vibrate && navigator.vibrate(8),
+  medium: () => navigator.vibrate && navigator.vibrate(15),
+  heavy:  () => navigator.vibrate && navigator.vibrate(25),
+  double: () => navigator.vibrate && navigator.vibrate([10, 60, 10]),
+  drum:   () => navigator.vibrate && navigator.vibrate(6),
+};
+
+// Auto-attach haptics to all buttons on page load
+function attachHaptics() {
+  // Light tap for all regular buttons
+  document.querySelectorAll('.btn, .btn-ghost, .icon-btn, .icon-action, .back-btn, .cat-pill, .lang-pill, .report-opt').forEach(el => {
+    el.addEventListener('pointerdown', () => haptics.light(), { passive: true });
+  });
+  // Medium for primary action buttons
+  document.querySelectorAll('#btn-cats-next, #btn-lang-next, #time-btn, #btn-notif, #welcome-btn').forEach(el => {
+    el.addEventListener('pointerdown', () => haptics.medium(), { passive: true });
+  });
+  // Heavy for send/confirm
+  document.querySelectorAll('#btn-report-send').forEach(el => {
+    el.addEventListener('pointerdown', () => haptics.heavy(), { passive: true });
+  });
+  // Double tap feel for fav toggle
+  const favBtn = document.getElementById('fav-btn');
+  if (favBtn) favBtn.addEventListener('pointerdown', () => haptics.double(), { passive: true });
+}
+
+// ══ DRUM AUDIO ══
+// Synthetic mechanical tick via Web Audio API — works on iOS & Android.
+// AudioContext must be created/resumed after a user gesture (browser policy).
+let _audioCtx = null;
+
+function getAudioCtx() {
+  if (!_audioCtx) {
+    _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  // iOS suspends context until user gesture — resume silently
+  if (_audioCtx.state === 'suspended') _audioCtx.resume();
+  return _audioCtx;
+}
+
+function playDrumTick() {
+  try {
+    const ctx = getAudioCtx();
+    const now = ctx.currentTime;
+
+    // Short noise burst shaped like a mechanical click
+    const bufSize = ctx.sampleRate * 0.04; // 40ms buffer
+    const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) {
+      // White noise with fast exponential decay
+      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufSize, 18);
+    }
+
+    const source = ctx.createBufferSource();
+    source.buffer = buf;
+
+    // Bandpass filter — gives it a woody/plastic "tick" quality
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = 1800;
+    filter.Q.value = 0.8;
+
+    // Gain — subtle, not annoying
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.22, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
+
+    source.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+    source.start(now);
+    source.stop(now + 0.04);
+  } catch (e) {
+    // Silently fail if audio not available
+  }
+}
+
+// Unlock AudioContext on first touch anywhere (required by iOS)
+function unlockAudio() {
+  getAudioCtx();
+  document.removeEventListener('touchstart', unlockAudio);
+  document.removeEventListener('mousedown', unlockAudio);
+}
+document.addEventListener('touchstart', unlockAudio, { once: true, passive: true });
+document.addEventListener('mousedown', unlockAudio, { once: true, passive: true });
+
+
+// ══ BANNER ══
+let bannerTimer;
+function showBanner(msg){const b=document.getElementById('banner');b.textContent=msg;b.classList.add('show');clearTimeout(bannerTimer);bannerTimer=setTimeout(()=>b.classList.remove('show'),3000);}
+
+// ══ CAT LISTENER ══
+document.querySelectorAll('#cat-container .cat-pill').forEach(pill=>{
+  pill.addEventListener('click',()=>{document.getElementById('btn-cats-next').disabled=!document.querySelectorAll('#cat-container .cat-pill.selected').length;});
+});
+
+// ══ SERVICE WORKER ══
+if('serviceWorker'in navigator){
+  navigator.serviceWorker.register('sw.js').then(reg=>{
+    // Check for updates whenever the page becomes visible again
+    document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') reg.update(); });
+  });
+  navigator.serviceWorker.addEventListener('message',e=>{
+    if(e.data?.type==='SHOW_QUOTE') loadQuote(true);
+    if(e.data?.type==='SW_UPDATED') showUpdateBanner();
+  });
+}
+
+function showUpdateBanner(){
+  const b=document.getElementById('banner');
+  b.innerHTML=t('banner_update');
+  b.classList.add('show');
+  // Don't auto-hide — user must tap to reload
+}
+
+init();
+</script>
+</body>
+</html>
