@@ -28,11 +28,23 @@
       --silver:  #a0b4cc;
     }
 
-    html { height: 100%; background: var(--bg); }
-    body { min-height: 100%; min-height: 100dvh; background: var(--bg); color: var(--text); font-family: 'Josefin Sans', sans-serif; font-weight: 300; overflow: hidden; }
-    /* Extend bg behind iOS home indicator and Dynamic Island */
-    body::before { content: ''; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--bg); z-index: -1; }
-    #app { height: 100%; min-height: 100dvh; display: flex; flex-direction: column; position: relative; background: var(--bg); }
+    html, body {
+      height: 100%;
+      min-height: 100dvh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Josefin Sans', sans-serif;
+      font-weight: 300;
+      overflow: hidden;
+    }
+    /* iOS safe area — fill bg behind home indicator and Dynamic Island */
+    html {
+      background-color: var(--bg);
+      /* Covers the bounce/overscroll area at top and bottom */
+      background-attachment: fixed;
+    }
+
+    #app { position: fixed; inset: 0; bottom: calc(0px - env(safe-area-inset-bottom)); display: flex; flex-direction: column; background: var(--bg); }
 
     /* noise */
     #app::before {
