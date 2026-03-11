@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Quoterly</title>
   <meta name="description" content="Your daily quote — inspiration from the world's greatest minds." />
-  <meta name="theme-color" content="#0e1f3d" />
+  <meta name="theme-color" content="#080d18" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#080d18" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Quoterly" />
@@ -15,8 +16,6 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Josefin+Sans:wght@200;300;400&display=swap" rel="stylesheet" />
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
       --bg:      #080d18;
       --bg2:     #0d1525;
@@ -28,23 +27,25 @@
       --silver:  #a0b4cc;
     }
 
-    html, body {
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html {
       height: 100%;
-      min-height: 100dvh;
+      /* iOS overscroll areas — top and bottom bounce zones */
+      background: var(--bg);
+    }
+    body {
+      height: 100%;
+      min-height: 100svh;
       background: var(--bg);
       color: var(--text);
       font-family: 'Josefin Sans', sans-serif;
       font-weight: 300;
       overflow: hidden;
-    }
-    /* iOS safe area — fill bg behind home indicator and Dynamic Island */
-    html {
-      background-color: var(--bg);
-      /* Covers the bounce/overscroll area at top and bottom */
-      background-attachment: fixed;
+      /* Fill safe area with app background */
+      padding-bottom: env(safe-area-inset-bottom);
     }
 
-    #app { position: fixed; inset: 0; bottom: calc(0px - env(safe-area-inset-bottom)); display: flex; flex-direction: column; background: var(--bg); }
+    #app { position: fixed; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; background: var(--bg); }
 
     /* noise */
     #app::before {

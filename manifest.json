@@ -4,8 +4,8 @@
   "description": "Your daily quote \u2014 inspiration from the world's greatest minds.",
   "start_url": "/Quoterly/",
   "display": "standalone",
-  "background_color": "#0e1f3d",
-  "theme_color": "#0e1f3d",
+  "background_color": "#080d18",
+  "theme_color": "#080d18",
   "orientation": "portrait",
   "icons": [
     {
